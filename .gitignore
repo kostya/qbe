@@ -1,4 +1,6 @@
 *.o
+*.a
+*.so
 qbe
 config.h
 .comfile
