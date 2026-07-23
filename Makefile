@@ -22,7 +22,7 @@ CLIOBJ   = main.o
 SRCALL   = main.c libqbe.c $(BACKOBJ:.o=.c)
 
 CC       = cc
-CFLAGS   = -std=c99 -g -Wall -Wextra -Wpedantic
+CFLAGS   = -std=c99 -O2 -DNDEBUG
 AR       = ar
 ARFLAGS  = rcs
 
