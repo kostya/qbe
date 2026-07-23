@@ -17,6 +17,8 @@ char debug['Z'+1] = {
 static jmp_buf error_jmp;
 static int error_jmp_valid = 0;
 static char error_buf[256] = {0};
+extern char *inpath;
+extern int lnum;
 
 void
 die_(char *file, char *msg, ...)
@@ -40,14 +42,16 @@ err(char *msg, ...)
 {
     va_list ap;
     va_start(ap, msg);
-    vsnprintf(error_buf, sizeof(error_buf), msg, ap);
+
+    int len = snprintf(error_buf, sizeof(error_buf), "%s:%d: ", inpath, lnum);
+    vsnprintf(error_buf + len, sizeof(error_buf) - len, msg, ap);
     va_end(ap);
     
     if (error_jmp_valid) {
         error_jmp_valid = 0;
         longjmp(error_jmp, 1);
     } else {
-        fprintf(stderr, "qbe: error: %s\n", error_buf);
+        fprintf(stderr, "qbe: %s\n", error_buf);
         exit(1);
     }
 }

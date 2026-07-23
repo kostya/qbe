@@ -151,7 +151,7 @@ enum {
 
 static uchar lexh[1 << (32-M)];
 static FILE *inf;
-static char *inpath;
+char *inpath;
 static int thead;
 static struct {
 	char chr;
@@ -160,7 +160,7 @@ static struct {
 	int64_t num;
 	char *str;
 } tokval;
-static int lnum;
+int lnum;
 
 static Fn *curf;
 static int *tmph;
