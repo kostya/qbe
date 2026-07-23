@@ -15,7 +15,7 @@ OBJ      = $(COMMOBJ) $(AMD64OBJ) $(ARM64OBJ) $(RV64OBJ)
 SRCALL   = $(OBJ:.o=.c)
 
 CC       = cc
-CFLAGS   = -std=c99 -g -Wall -Wextra -Wpedantic
+CFLAGS   = -std=c99 -O2 -DNDEBUG
 
 qbe: $(OBJ)
 	$(CC) $(LDFLAGS) $(OBJ) -o $@
