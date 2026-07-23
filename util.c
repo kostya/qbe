@@ -49,19 +49,6 @@ hash(char *s)
 	return h;
 }
 
-void
-die_(char *file, char *s, ...)
-{
-	va_list ap;
-
-	fprintf(stderr, "%s: dying: ", file);
-	va_start(ap, s);
-	vfprintf(stderr, s, ap);
-	va_end(ap);
-	fputc('\n', stderr);
-	abort();
-}
-
 void *
 emalloc(size_t n)
 {

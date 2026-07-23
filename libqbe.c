@@ -1,3 +1,6 @@
+#include <stdarg.h>
+#include <setjmp.h>
+
 #include "all.h"
 #include "config.h"
 #include <ctype.h>
@@ -10,6 +13,44 @@ char debug['Z'+1] = {
     ['G'] = 0, ['K'] = 0, ['A'] = 0, ['I'] = 0,
     ['L'] = 0, ['S'] = 0, ['R'] = 0,
 };
+
+static jmp_buf error_jmp;
+static int error_jmp_valid = 0;
+static char error_buf[256] = {0};
+
+void
+die_(char *file, char *msg, ...)
+{
+    va_list ap;
+    va_start(ap, msg);
+    vsnprintf(error_buf, sizeof(error_buf), msg, ap);
+    va_end(ap);
+    
+    if (error_jmp_valid) {
+        error_jmp_valid = 0;
+        longjmp(error_jmp, 1);
+    } else {
+        fprintf(stderr, "%s: dying: %s\n", file, error_buf);
+        abort();
+    }
+}
+
+void
+err(char *msg, ...)
+{
+    va_list ap;
+    va_start(ap, msg);
+    vsnprintf(error_buf, sizeof(error_buf), msg, ap);
+    va_end(ap);
+    
+    if (error_jmp_valid) {
+        error_jmp_valid = 0;
+        longjmp(error_jmp, 1);
+    } else {
+        fprintf(stderr, "qbe: error: %s\n", error_buf);
+        exit(1);
+    }
+}
 
 typedef struct QBE {
     Target target;
@@ -226,11 +267,19 @@ int qbe_compile_string(QBE *q, const char *input, const char *name) {
         return -1;
     }
     
-    int result = do_compile(q, stream, name_copy);
-    
-    fclose(stream);
-    free(name_copy);
-    return result;
+    error_jmp_valid = 1;
+    if (setjmp(error_jmp) == 0) {
+        do_compile(q, stream, name_copy);
+        error_jmp_valid = 0;
+        fclose(stream);
+        free(name_copy);
+        return 0;
+    } else {
+        snprintf(q->error, sizeof(q->error), "%s", error_buf);
+        fclose(stream);
+        free(name_copy);
+        return -1;
+    }
 }
 
 int qbe_compile_file(QBE *q, const char *filename) {
@@ -250,11 +299,19 @@ int qbe_compile_file(QBE *q, const char *filename) {
         return -1;
     }
     
-    int result = do_compile(q, f, name_copy);
-    
-    fclose(f);
-    free(name_copy);
-    return result;
+    error_jmp_valid = 1;
+    if (setjmp(error_jmp) == 0) {
+        do_compile(q, f, name_copy);
+        error_jmp_valid = 0;
+        fclose(f);
+        free(name_copy);
+        return 0;
+    } else {
+        snprintf(q->error, sizeof(q->error), "%s", error_buf);
+        fclose(f);
+        free(name_copy);
+        return -1;
+    }
 }
 
 int qbe_compile_stream(QBE *q, FILE *stream, const char *name) {
@@ -266,9 +323,17 @@ int qbe_compile_stream(QBE *q, FILE *stream, const char *name) {
         return -1;
     }
     
-    int result = do_compile(q, stream, name_copy);
-    free(name_copy);
-    return result;
+    error_jmp_valid = 1;
+    if (setjmp(error_jmp) == 0) {
+        do_compile(q, stream, name_copy);
+        error_jmp_valid = 0;
+        free(name_copy);
+        return 0;
+    } else {
+        snprintf(q->error, sizeof(q->error), "%s", error_buf);
+        free(name_copy);
+        return -1;
+    }
 }
 
 int qbe_finish(QBE *q) {
@@ -277,8 +342,17 @@ int qbe_finish(QBE *q) {
     Target saved_T = T;
     T = q->target;
     
-    if (!q->dbg)
-        T.emitfin(q->outf);
+    if (!q->dbg) {
+        error_jmp_valid = 1;
+        if (setjmp(error_jmp) == 0) {
+            T.emitfin(q->outf);
+            error_jmp_valid = 0;
+        } else {
+            snprintf(q->error, sizeof(q->error), "%s", error_buf);
+            T = saved_T;
+            return -1;
+        }
+    }
     
     T = saved_T;
     return 0;
